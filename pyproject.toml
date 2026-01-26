@@ -1,0 +1,28 @@
+[project]
+name = "credito"
+version = "0.1.0"
+description = "A short description of the project."
+authors = [
+  { name = "Alejandro Cancelas Chapela" }
+]
+readme = "README.md"
+requires-python = ">= 3.10"  # He actualizado esto para evitar problemas con Python muy antiguos
+license = {text = ""}
+dependencies = [
+  "invoke",
+  "jupyter",
+  "jupyterlab",
+  "matplotlib",
+  "numpy",
+  "scikit-learn",
+  "pandas",  
+  "seaborn", 
+  "joblib",   
+]
+
+[tool.setuptools]
+packages = ["credito"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
