@@ -11,7 +11,7 @@ from credito.models.train_model import train_models
 from credito.models.predict_model import evaluate_models
 
 # Nombre del modelo que vamos a usar
-MODEL_NAME = "DecisionTree.joblib" 
+MODEL_NAME = "RandomForest.joblib" 
 
 def check_is_trained():
     """Verifica si existen el modelo y los archivos de traducción (encoders)."""

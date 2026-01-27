@@ -1,8 +1,6 @@
 import joblib
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
 from credito.utils.paths import MODELS_DIR
+from sklearn.ensemble import RandomForestClassifier
 
 def train_models(X_train, y_train):
     """
@@ -11,11 +9,15 @@ def train_models(X_train, y_train):
     print("--> Entrenando modelos...")
     models = {}
 
-    # Decision Tree
-    print("    Entrenando Decision Tree...")
-    dt = DecisionTreeClassifier()
+    print("    Entrenando el random forest...")
+    dt =  RandomForestClassifier(
+        n_estimators=200,
+        class_weight='balanced',  
+        max_depth=10,
+        random_state=2
+    )
     dt.fit(X_train, y_train)
-    models['DecisionTree'] = dt
+    models['RandomForest'] = dt
 
     # Guardar modelos
     for name, model in models.items():
