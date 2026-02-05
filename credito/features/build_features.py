@@ -7,47 +7,56 @@ from credito.utils.paths import ARTIFACTS_DIR
 
 def preprocess_data(df, target_col='y', save_artifacts=True):
     """
-    Procesa los datos para entrenamiento y guarda los codificadores.
+    Procesa los datos siguiendo la lógica del proyecto:
+    1. Eliminación de duplicados.
+    2. Label Encoding para variables categóricas.
+    3. Escalado Min-Max para todas las variables.
     """
-    print("--> Preprocesando datos de entrenamiento...")
+    print("--> Preprocesando datos...")
     
-    # 1. Limpieza
+    # 1. Limpieza: Eliminación de duplicados (identificados 12 en el train set del notebook)
     df = df.drop_duplicates()
     
     # Separar X e y
     if target_col in df.columns:
-        X = df.drop(columns=[target_col])
+        X = df.drop(columns=[target_col]).copy()
+        # En el notebook, 'y' ya viene como numérica (0, 1), 
+        # pero nos aseguramos por si acaso
         y = df[target_col]
     else:
-        # Caso para predicción sin target
-        X = df
+        X = df.copy()
         y = None
 
-    # Guardamos el orden de las columnas para pedirselas al usuario luego
+    # Guardar el orden de las columnas original
     if save_artifacts:
         joblib.dump(X.columns.tolist(), ARTIFACTS_DIR / "columns.joblib")
 
-    # 2. Categóricas
+    # 2. Variables Categóricas: LabelEncoder (como se usa en el notebook)
+    # Identificamos columnas tipo objeto: job, marital, education, default, housing, 
+    # loan, contact, month, day_of_week, poutcome
     cat_cols = X.select_dtypes(include=['object']).columns
     encoders = {}
 
     for col in cat_cols:
         le = LabelEncoder()
-        # Convertir a string para evitar errores
+        # El notebook asume que no hay nulos (confirmado en el EDA)
         X[col] = le.fit_transform(X[col].astype(str))
         encoders[col] = le
     
     if save_artifacts:
         joblib.dump(encoders, ARTIFACTS_DIR / "encoders.joblib")
 
-    # 3. Escalado
+    # 3. Escalado: MinMaxScaler (utilizado en las celdas de preprocesado del proyecto)
     scaler = MinMaxScaler()
-    X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+    # Aplicamos el escalado a todo el conjunto X transformado
+    X_scaled_array = scaler.fit_transform(X)
+    X_scaled = pd.DataFrame(X_scaled_array, columns=X.columns)
     
     if save_artifacts:
         joblib.dump(scaler, ARTIFACTS_DIR / "scaler.joblib")
 
-    # Retorno
+    # Retorno con split 80/20 como es estándar (el notebook usa train/test pre-separados,
+    # pero para el pipeline build_features es mejor devolver el split del train set)
     if y is not None:
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
         return X_train, X_test, y_train, y_test
@@ -56,34 +65,30 @@ def preprocess_data(df, target_col='y', save_artifacts=True):
 
 def process_input(user_data):
     """
-    Toma un diccionario con los datos del usuario y los transforma
-    usando los artefactos guardados.
+    Transforma la entrada del usuario para predicción usando los artefactos entrenados.
     """
-    # 1. Cargar artefactos
     try:
         columns = joblib.load(ARTIFACTS_DIR / "columns.joblib")
         encoders = joblib.load(ARTIFACTS_DIR / "encoders.joblib")
         scaler = joblib.load(ARTIFACTS_DIR / "scaler.joblib")
     except FileNotFoundError:
-        raise Exception("No se encontraron los archivos de entrenamiento. Entrena el modelo primero.")
+        raise Exception("Artefactos no encontrados. Ejecute el entrenamiento primero.")
 
-    # 2. Crear DataFrame con las columnas correctas
+    # Crear DataFrame y asegurar orden de columnas
     df = pd.DataFrame([user_data])
-    
-    # Asegurar que el orden de columnas es el mismo que en el entrenamiento
     df = df[columns]
 
-    # 3. Aplicar Encoders (Categorías)
+    # Aplicar Encoders guardados
     for col, le in encoders.items():
-        # Manejo básico de errores si el usuario pone algo desconocido
         try:
+            # Intentamos transformar el valor del usuario
             df[col] = le.transform(df[col].astype(str))
         except ValueError:
-            # Si el valor no existe (ej: Trabajo='Youtuber'), asignamos un valor por defecto o fallamos
-            print(f"Advertencia: El valor '{df[col].iloc[0]}' en '{col}' no se vio en el entrenamiento.")
-            df[col] = 0 # Asignamos 0 por defecto (o podrías lanzar error)
+            print(f"Advertencia: Valor desconocido en '{col}'. Usando clase por defecto.")
+            # Si el valor es nuevo, asignamos la clase 0 o la más común
+            df[col] = 0 
 
-    # 4. Aplicar Scaler (Numéricos)
+    # Aplicar Escalado
     df_scaled = scaler.transform(df)
     
     return df_scaled
