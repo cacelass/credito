@@ -8,7 +8,7 @@ El sistema transforma datos crudos en predicciones accionables mediante un pipel
 ## Origen del Desarrollo y Logica
 El nucleo analitico de este proyecto nace de una fase de experimentacion detallada. Toda la logica de analisis exploratorio de datos (EDA), la comparativa de algoritmos y las decisiones de preprocesamiento estan documentadas paso a paso en el siguiente archivo:
 
-* Ubicacion: notebooks/Entrega-.ipynb
+* Ubicacion: notebooks/ProyeectoCredito.ipynb
 
 Este cuaderno contiene la justificacion matematica y visual de las decisiones tomadas, mientras que los archivos .py de este repositorio representan la version refactorizada y optimizada para un entorno de produccion.
 
@@ -56,9 +56,17 @@ Asegurese de instalar dichas dependencias en su entorno virtual antes de ejecuta
 
 ## Modelos Evaluados
 Basado en el analisis del notebook, se han considerado los siguientes algoritmos:
-* Decision Tree Classifier (Implementado en produccion)
-* K-Nearest Neighbors (KNN)
+* Random forest
+* SVM
 * Logistic Regression
+
+## Curva ROC
+
+La siguiente figura muestra la **curva ROC (Receiver Operating Characteristic)** del modelo entrenado, utilizada para evaluar su capacidad de discriminación entre clases.  
+Se representa la tasa de verdaderos positivos (TPR) frente a la tasa de falsos positivos (FPR) para distintos umbrales de decisión.
+
+![Curva ROC del modelo](data/processed/image.png)
+
 
 ## Autor
 Alejandro Cancelas Chapela
