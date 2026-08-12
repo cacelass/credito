@@ -9,59 +9,66 @@ def preprocess_data(df, target_col='y', save_artifacts=True):
     """
     Procesa los datos siguiendo la lógica del proyecto:
     1. Eliminación de duplicados.
-    2. Label Encoding para variables categóricas.
-    3. Escalado Min-Max para todas las variables.
+    2. Split train/test ANTES de ajustar los transformadores.
+    3. Label Encoding y escalado Min-Max ajustados SOLO con el train set.
     """
     print("--> Preprocesando datos...")
     
-    # 1. Limpieza: Eliminación de duplicados (identificados 12 en el train set del notebook)
+    # 1. Limpieza: Eliminación de duplicados
     df = df.drop_duplicates()
     
     # Separar X e y
     if target_col in df.columns:
         X = df.drop(columns=[target_col]).copy()
-        # En el notebook, 'y' ya viene como numérica (0, 1), 
-        # pero nos aseguramos por si acaso
         y = df[target_col]
     else:
         X = df.copy()
         y = None
 
+    # 2. Split 80/20 con estratificación ANTES de ajustar los transformadores.
+    #    Ajustar scaler/encoders con todo el dataset filtra información del test set.
+    if y is not None:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+    else:
+        X_train, X_test, y_train, y_test = X, X, None, None
+
     # Guardar el orden de las columnas original
     if save_artifacts:
         joblib.dump(X.columns.tolist(), ARTIFACTS_DIR / "columns.joblib")
 
-    # 2. Variables Categóricas: LabelEncoder (como se usa en el notebook)
-    # Identificamos columnas tipo objeto: job, marital, education, default, housing, 
-    # loan, contact, month, day_of_week, poutcome
-    cat_cols = X.select_dtypes(include=['object']).columns
+    # 3. Variables Categóricas: LabelEncoder ajustado SOLO con el train set
+    cat_cols = X_train.select_dtypes(include=['object']).columns
     encoders = {}
 
     for col in cat_cols:
         le = LabelEncoder()
-        # El notebook asume que no hay nulos (confirmado en el EDA)
-        X[col] = le.fit_transform(X[col].astype(str))
+        X_train[col] = le.fit_transform(X_train[col].astype(str))
+        if X_test is not None:
+            X_test[col] = le.transform(X_test[col].astype(str))
         encoders[col] = le
     
     if save_artifacts:
         joblib.dump(encoders, ARTIFACTS_DIR / "encoders.joblib")
 
-    # 3. Escalado: MinMaxScaler (utilizado en las celdas de preprocesado del proyecto)
+    # 4. Escalado: MinMaxScaler ajustado SOLO con el train set
     scaler = MinMaxScaler()
-    # Aplicamos el escalado a todo el conjunto X transformado
-    X_scaled_array = scaler.fit_transform(X)
-    X_scaled = pd.DataFrame(X_scaled_array, columns=X.columns)
+    X_train_scaled = pd.DataFrame(
+        scaler.fit_transform(X_train), columns=X_train.columns
+    )
+    if X_test is not None:
+        X_test_scaled = pd.DataFrame(
+            scaler.transform(X_test), columns=X_test.columns
+        )
     
     if save_artifacts:
         joblib.dump(scaler, ARTIFACTS_DIR / "scaler.joblib")
 
-    # Retorno con split 80/20 como es estándar (el notebook usa train/test pre-separados,
-    # pero para el pipeline build_features es mejor devolver el split del train set)
     if y is not None:
-        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-        return X_train, X_test, y_train, y_test
+        return X_train_scaled, X_test_scaled, y_train, y_test
     else:
-        return X_scaled
+        return X_train_scaled
 
 def process_input(user_data):
     """

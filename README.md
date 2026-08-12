@@ -1,72 +1,107 @@
-# Proyecto de Clasificacion de Credito Bancario
+# Retail Banking Propensity Model
 
-## Descripcion General
-Este proyecto implementa un sistema de Machine Learning enfocado en el Aprendizaje Supervisado. El objetivo principal es predecir la probabilidad de que un cliente bancario suscriba un credito basandose en caracteristicas demograficas y datos historicos de campañas de marketing.
+[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![ML](https://img.shields.io/badge/ML-Supervised%20Classification-orange)](https://scikit-learn.org/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-El sistema transforma datos crudos en predicciones accionables mediante un pipeline que abarca desde la ingestion de datos hasta una interfaz de inferencia para el usuario final.
+> Predicción de la propensión de un cliente a **suscribir un depósito a plazo**,
+> construida sobre el dataset de campañas de marketing bancario (UCI Bank Marketing).
 
-## Origen del Desarrollo y Logica
-El nucleo analitico de este proyecto nace de una fase de experimentacion detallada. Toda la logica de analisis exploratorio de datos (EDA), la comparativa de algoritmos y las decisiones de preprocesamiento estan documentadas paso a paso en el siguiente archivo:
+Sistema de ML supervisado que estima la probabilidad de que un cliente de banca
+retail contrate un producto (depósito a plazo) durante una campaña de marketing,
+a partir de características demográficas y de interacción con la campaña.
 
-* Ubicacion: notebooks/ProyeectoCredito.ipynb
+---
 
-Este cuaderno contiene la justificacion matematica y visual de las decisiones tomadas, mientras que los archivos .py de este repositorio representan la version refactorizada y optimizada para un entorno de produccion.
+## Descripción del problema
 
-## Contexto: Aprendizaje Supervisado
-Este repositorio sirve como una exploracion practica de los conceptos fundamentales del aprendizaje supervisado:
+La banca retail ejecuta campañas de marketing sobre su base de clientes. Llamar
+a todos es caro; llamar a los clientes equivocados erosiona la relación y el
+presupuesto. El objetivo es **priorizar** — ordenar la base de clientes por
+probabilidad de contratación para que el equipo de campaña se centre en los que
+tienen más propensión.
 
-1.  Entrenamiento con Etiquetas: El algoritmo aprende a partir de un conjunto de datos historico (credit-train.csv) donde la variable objetivo ('y') es conocida.
-2.  Generalizacion: El sistema busca patrones en los datos de entrenamiento para aplicar ese conocimiento a casos nuevos no vistos anteriormente.
-3.  Clasificacion Binaria: El problema se modela para distinguir entre dos clases exclusivas: aprobacion o denegacion del credito.
+El dataset es el clásico **UCI Bank Marketing** (41.188 registros de campañas de
+telemarketing de un banco portugués, 20 features). La variable objetivo `y`
+indica si el cliente suscribió un depósito a plazo (`1`) o no (`0`). El dataset
+está **desbalanceado**: 88.7% de clientes no suscriben frente a 11.3% que sí.
 
-## Estructura del Proyecto
-El codigo esta organizado de forma modular siguiendo estandares de ciencia de datos:
+Este es un problema de **propensión a producto / cross-sell**, no de riesgo de
+crédito. La métrica que importa en producción es la capacidad de **priorizar la
+clase positiva** (los que van a suscribir): por eso la evaluación se centra en
+la curva precision-recall, no en accuracy.
 
-* credito/data: Scripts para la carga y lectura de datasets.
-* credito/features: Modulos para el preprocesamiento (LabelEncoding, Scaling).
-* credito/models: Logica de entrenamiento, persistencia de modelos y evaluacion.
-* credito/utils: Configuraciones globales y gestion de rutas.
-* main.py: Orquestador principal e interfaz de linea de comandos.
-* data/raw: Directorio de entrada para los archivos CSV.
-* models/: Almacenamiento de modelos entrenados y artefactos de traduccion.
+---
 
-## Requisitos e Instalacion
-Para ejecutar este proyecto, es necesario disponer de Python (version 3.10 o superior) y las librerias especificadas en el archivo de configuracion (pyproject.toml o requirements.txt), principalmente:
-* pandas
-* scikit-learn
-* joblib
-* matplotlib / seaborn
+## Enfoque de modelado
 
-Asegurese de instalar dichas dependencias en su entorno virtual antes de ejecutar el programa.
+| Decisión | Justificación |
+|---|---|
+| Random Forest con `class_weight='balanced'` | Modelo interpretable, robusto al desbalanceo sin sobreajustar |
+| Split 80/20 **estratificado** y **antes** de ajustar transformadores | Ajustar el scaler/encoders con todo el dataset filtraría información del test set (leakage) |
+| ROC-AUC + PR-AUC como métricas principales | PR-AUC mide la capacidad de priorizar la clase minoritaria (la que importa en una campaña) |
+| Artefactos (encoders, scaler, columnas) persistidos y reutilizados en inferencia | La predicción en producción aplica exactamente las mismas transformaciones que el entrenamiento |
 
-## Guia de Uso
+## Resultados (Random Forest, test set)
 
-1.  Preparacion de Datos:
-    Asegurese de que el archivo 'credit-train.csv' se encuentra dentro de la carpeta 'data/raw/'.
+| Métrica | Valor |
+|---|---|
+| ROC-AUC | **0.948** |
+| PR-AUC | **0.651** |
+| Accuracy | 0.87 |
+| Recall (clase positiva) | 0.92 |
+| Precision (clase positiva) | 0.46 |
 
-2.  Ejecucion:
-    Inicie el programa desde la terminal en la raiz del proyecto:
+La combinación de **recall alto (0.92)** y **PR-AUC 0.65** frente a una base del
+11.3% indica que el modelo captura la gran mayoría de los clientes que sí van a
+suscribir, a costa de falsos positivos — el trade-off correcto para priorizar
+una lista de llamadas en la que el coste de una llamada errónea es bajo.
 
-    python main.py
+Las métricas se persisten automáticamente en `reports/metrics.json` al entrenar.
 
-3.  Funcionamiento:
-    * Verificacion: El sistema detecta automaticamente si existe un modelo entrenado.
-    * Entrenamiento: Si es la primera ejecucion, el sistema procesara el dataset, entrenara el modelo (Decision Tree por defecto) y guardara los resultados.
-    * Prediccion: Se iniciara una interfaz interactiva donde se solicitaran los datos del cliente. El sistema validara que las entradas coincidan con las categorias aprendidas en el notebook original y devolvera una decision (Aprobado/Denegado) junto con un nivel de confianza.
+---
 
-## Modelos Evaluados
-Basado en el analisis del notebook, se han considerado los siguientes algoritmos:
-* Random forest
-* SVM
-* Logistic Regression
+## Estructura del proyecto
 
-## Curva ROC
+```
+credito/
+├── data/
+│   └── raw/            ← credit-train.csv (UCI Bank Marketing)
+├── credito/
+│   ├── data/           make_dataset.py — carga de datos
+│   ├── features/       build_features.py — preprocessing + split sin leakage
+│   ├── models/         train_model.py · predict_model.py (métricas persistidas)
+│   └── utils/          paths.py — rutas centralizadas
+├── models/             RandomForest.joblib + artifacts/ (encoders, scaler, columns)
+├── reports/            metrics.json (resultados reales)
+├── notebooks/          análisis exploratorio y comparativa de algoritmos
+└── main.py             orquestador + interfaz interactiva de predicción
+```
 
-La siguiente figura muestra la **curva ROC (Receiver Operating Characteristic)** del modelo entrenado, utilizada para evaluar su capacidad de discriminación entre clases.  
-Se representa la tasa de verdaderos positivos (TPR) frente a la tasa de falsos positivos (FPR) para distintos umbrales de decisión.
+## Uso
 
-![Curva ROC del modelo](data/processed/image.png)
+```bash
+# 1. Coloca credit-train.csv en data/raw/
+# 2. Ejecuta (entrena si no hay modelo, luego pide datos del cliente)
+python main.py
+```
 
+El pipeline: carga → preprocesado (split primero, escalado/encoding solo con
+train) → entrenamiento → evaluación con métricas persistidas → inferencia
+interactiva con las mismas transformaciones del entrenamiento.
+
+## Limitaciones
+
+- El dataset es de una campaña de telemarketing de un banco concreto; los
+  coeficientes de features como `euribor3m` o `nr_employed` reflejan ese
+  contexto económico y no generalizan a otros mercados sin reentrenar.
+- Las variables de interacción (`duration`, `campaign`, `pdays`) se miden
+  durante la llamada, así que el modelo es adecuado para **priorizar y
+  segmentar**, no para predecir el resultado antes de hacer la llamada.
+- `class_weight='balanced'` eleva el recall de la clase positiva a costa de
+  precisión; el umbral de decisión final es una decisión de negocio que depende
+  del coste de una llamada errónea.
 
 ## Autor
+
 Alejandro Cancelas Chapela

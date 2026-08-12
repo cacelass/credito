@@ -1,7 +1,7 @@
 [project]
 name = "credito"
 version = "0.1.0"
-description = "A short description of the project."
+description = "Predicción de propensión a suscribir depósito a plazo (UCI Bank Marketing) con Random Forest y métricas persistidas."
 authors = [
   { name = "Alejandro Cancelas Chapela" }
 ]

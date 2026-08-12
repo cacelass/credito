@@ -26,7 +26,7 @@ def ask_user_data():
     No permite avanzar si el dato no es válido.
     """
     print("\n" + "="*40)
-    print("   NUEVA SOLICITUD DE CRÉDITO")
+    print("   NUEVO CLIENTE — CANDIDATO A PRODUCTO")
     print("="*40)
     
     try:
@@ -121,9 +121,9 @@ def main():
             # Mostrar resultado
             print("\n" + "-"*30)
             if prediction == 1 or prediction == 'yes':
-                print(f" CRÉDITO APROBADO (Confianza: {prob_yes:.1%})")
+                print(f" ALTA PROPENSIÓN A SUSCRIBIR (Probabilidad: {prob_yes:.1%})")
             else:
-                print(f" CRÉDITO DENEGADO (Riesgo alto - Confianza NO: {probs[0]:.1%})")
+                print(f" BAJA PROPENSIÓN A SUSCRIBIR (Probabilidad: {prob_yes:.1%})")
             print("-"*30 + "\n")
             
             # ¿Otra vez?
